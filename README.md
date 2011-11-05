@@ -22,22 +22,22 @@ to have required query arguments, say GET /a/b/c?thing=3
 
 to have optional query arguments, say GET /a/b/c or /a/b/c?opt=meow ,
 
-    ```python
-    from helpers import optional_args
+```python
+from helpers import optional_args
 
-    @optional_args('opt')
-    def GET(opt='narf'):
-        return 'optionally: %s' % opt
-    ```
+@optional_args('opt')
+def GET(opt='narf'):
+    return 'optionally: %s' % opt
+```
 
 to make a link , say to another page /z with some arguments ,
 
-    ```python
-    from helpers import optional_args, make_rel_link
+```python
+from helpers import optional_args, make_rel_link
 
-    import app.z
+import app.z
 
-    @optional_args('opt')
-    def GET(opt='narf'):
-        return "%s! here's a <a href=\"%s\">link</a>" % (opt, make_rel_link(app.z.GET, 7, 9, c='aaaaaaa'))
-    ```
+@optional_args('opt')
+def GET(opt='narf'):
+    return "%s! here's a <a href=\"%s\">link</a>" % (opt, make_rel_link(app.z.GET, 7, 9, c='aaaaaaa'))
+```
