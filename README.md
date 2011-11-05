@@ -58,7 +58,7 @@ def router(verb, path, **kwargs):
     return None
 ```
 
-or, for example, to serve /a and /b , create an app/__init__.py ,
+or, for example, to serve /a and /b , create an app/\_\_init\_\_.py ,
 
 ```python
 def antelope():
