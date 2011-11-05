@@ -26,7 +26,8 @@ def dispatch(environ, start_response):
     if module_path not in globals():
         try:
             module = __import__(module_path, globals(), locals(), [], -1)
-        except ImportError:
+        except ImportError, e:
+            print e
             raise NotImplementedError(environ['PATH_INFO'])
         method = reduce(lambda submo, p: getattr(submo, p), url_path_parts, module).GET
 
