@@ -1,5 +1,6 @@
 import ast
 import os.path
+import sys
 import urlparse
 
 from helpers import unpack_method
@@ -10,26 +11,56 @@ def unzip2(xys):
     else:
         return [], []
 
+class MultipleMatchingMethods(Exception):
+    pass
+
+class NoMatchingMethod(Exception):
+    pass
+
 class BrokenQuery(Exception):
     pass
 
 def dispatch(environ, start_response):
 
-    # Find the appropriate module.method
+    # Find the matching methods implemented through custom routers ..
     url_path_parts = filter(lambda p: '' != p, environ['PATH_INFO'].split('/'))
-    if url_path_parts:
-        module_path = '.'.join(['app'] + url_path_parts)
-    else:
-        module_path = 'app'
-
-    # Maybe import
-    if module_path not in globals():
+    methods = []
+    for i, part in enumerate(url_path_parts):
+        # Maybe import ..
+        module_path = '.'.join(['app'] + url_path_parts[:i])
         try:
-            module = __import__(module_path, globals(), locals(), [], -1)
+            __import__(module_path, globals(), locals(), [], -1)
+            module = sys.modules[module_path]
+            # if there's a module.router, then do what it asks
+            if hasattr(module, 'router'):
+                try:
+                    # the search shouldn't be ruined if this fails
+                    method = module.router('GET', url_path_parts)
+                    if method is not None:
+                        methods.append(method)
+                except Exception, e:
+                    print >> sys.stderr, '** router fail: %s.router(%s, %s)' % (module_path, 'GET', url_path_parts)
         except ImportError, e:
-            print e
-            raise NotImplementedError(environ['PATH_INFO'])
-        method = reduce(lambda submo, p: getattr(submo, p), url_path_parts, module).GET
+            pass
+        
+    # Add the default method if it can be found.
+    try:
+        default_module_path = '.'.join(['app'] + url_path_parts)
+        __import__(default_module_path, globals(), locals(), [], -1)
+        default_module = sys.modules[default_module_path]
+        if hasattr(default_module, 'GET'):
+            methods.append(getattr(default_module, 'GET'))
+    except ImportError, e:
+        pass
+
+    # If more than one method matches, or no method matches, we
+    # complain.
+    if len(methods) > 1:
+        raise MultipleMatchingMethods(environ['PATH_INFO'], methods)
+    if len(methods) == 0:
+        raise NoMatchingMethod(environ['PATH_INFO'])
+    else:
+        method = methods[0]
 
     # Check that the query is properly formatted:
     optional_args, method = unpack_method(method)

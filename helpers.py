@@ -17,7 +17,6 @@ def unpack_method(method):
 def make_rel_link(method, *args, **kwargs):
     path, qsl = validate_method_call(method, args, kwargs)
     if qsl:
-        print path, qsl
         return '/%s?%s' % (path, urllib.urlencode(qsl))
     else:
         return path
@@ -36,9 +35,7 @@ def validate_method_call(method, args, kwargs):
             for a in opt_args:
                 qsl.append((a, kwargs[a]))
             # And determine the path.
-            print method.__module__
             path = '/'.join(method.__module__.split('.')[1:])
-            print path
             return path or '/', qsl
     raise BadURL()
     
