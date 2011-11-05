@@ -39,7 +39,7 @@ def dispatch(environ, start_response):
                     if method is not None:
                         methods.append(method)
                 except Exception, e:
-                    print >> sys.stderr, '** router fail: %s.router(%s, %s)' % (module_path, 'GET', url_path_parts)
+                    print >> sys.stderr, '** router fail: %s.router(%s, %s), "%s"' % (module_path, 'GET', url_path_parts, e)
         except ImportError, e:
             pass
         

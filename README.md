@@ -42,10 +42,39 @@ def GET(opt='narf'):
     return "%s! here's a <a href=\"%s\">link</a>" % (opt, make_rel_link(app.z.GET, 7, 9, c='aaaaaaa'))
 ```
 
-to make a dynamic path, for example matching /a/fu , /a/fuu ,
-/a/fUUuu/ , etc , create app/a/__init__.py ,
+to make a dynamic path, for example matching any page like
+/rage/fuuuuuUUUuuuuuuuUU , create an app/rage.py ,
 
 ```python
+import re
 
+def rage():
+    return 'rawwwrrr!'
 
+def router(verb, path, **kwargs):
+    if verb == 'GET':
+        if len(path) == 2 and re.search('^[Ff]+[Uu]*$', path[1]):
+            return rage
+    return None
 ```
+
+or, for example, to serve /a and /b , create an app/__init__.py ,
+
+```python
+def antelope():
+    return 'a is for antelope. were you looking for <a href="/b">bononbo?</a>'
+
+def bonobo():
+    return 'b is for bonobo. were you looking for <a href="/a">antelope?</a>'
+
+def router(verb, path, **kwargs):
+    if verb == 'GET':
+        if path == ['a']:
+            return antelope
+        elif path == ['b']:
+            return bonobo
+    return None
+```
+
+note that I haven't figured out a clever way to expose URLs available
+through custom routers.
