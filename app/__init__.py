@@ -1,7 +1,18 @@
-from helpers import make_rel_link
+def antelope():
+    return 'a is for antelope. were you looking for <a href="/b">bononbo?</a>'
 
-import app.test
+def bonobo():
+    return 'b is for bonobo. were you looking for <a href="/a">antelope?</a>'
 
-def GET():
-    return "this is just my boring home page<br>\
-here's a <a href=\"%s\">link</a>" % make_rel_link(app.test.GET, 7, 9, c='aaaaaaa')
+def home():
+    return 'boring old home page'
+
+def router(verb, path, **kwargs):
+    if verb == 'GET':
+        if path == ['a']:
+            return antelope
+        elif path == ['b']:
+            return bonobo
+        elif path == []:
+            return home
+    return None

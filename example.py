@@ -25,7 +25,7 @@ def dispatch(environ, start_response):
     # Find the matching methods implemented through custom routers ..
     url_path_parts = filter(lambda p: '' != p, environ['PATH_INFO'].split('/'))
     methods = []
-    for i, part in enumerate(url_path_parts):
+    for i in range(len(url_path_parts) + 1):
         # Maybe import ..
         module_path = '.'.join(['app'] + url_path_parts[:i])
         try:
@@ -41,8 +41,8 @@ def dispatch(environ, start_response):
                 except Exception, e:
                     print >> sys.stderr, '** router fail: %s.router(%s, %s), "%s"' % (module_path, 'GET', url_path_parts, e)
         except ImportError, e:
-            pass
-        
+            pass        
+
     # Add the default method if it can be found.
     try:
         default_module_path = '.'.join(['app'] + url_path_parts)
