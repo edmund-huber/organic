@@ -1,9 +1,8 @@
 import ast
+import _ast
 import os.path
 import sys
 import urlparse
-
-from helpers import unpack_method
 
 def unzip2(xys):
     if xys:
@@ -18,6 +17,9 @@ class NoMatchingMethod(Exception):
     pass
 
 class BrokenQuery(Exception):
+    pass
+
+class CannotParse(Exception):
     pass
 
 def dispatch(environ, start_response):
@@ -49,7 +51,22 @@ def dispatch(environ, start_response):
         __import__(default_module_path, globals(), locals(), [], -1)
         default_module = sys.modules[default_module_path]
         if hasattr(default_module, 'GET'):
-            methods.append(getattr(default_module, 'GET'))
+            # OK, also parse the file so that we figure out the
+            # arguments and optional arguments.
+            try:
+                path = default_module.__file__
+                path = path[:-1] if path[-1] == 'c' else path
+                for e in ast.parse(open(path).read()).body:
+                    if isinstance(e, _ast.FunctionDef) and (e.name == 'GET'):
+                        all_args = [arg.id for arg in e.args.args]
+                        default_count = len(e.args.defaults)
+                # Assumption: all arguments-with-defaults must come
+                # after any regular argument.
+                methods.append((getattr(default_module, 'GET'),
+                                all_args[:default_count],
+                                all_args[default_count:]))
+            except Exception, e:
+                raise CannotParse(e)
     except ImportError, e:
         pass
 
@@ -63,15 +80,21 @@ def dispatch(environ, start_response):
         method = methods[0]
 
     # Check that the query is properly formatted:
-    optional_args, method = unpack_method(method)
+    method, required_args, optional_args = method
     url_query_kvs = urlparse.parse_qsl(environ['QUERY_STRING'])
     url_query_ks, _ = unzip2(url_query_kvs)
+
     # .. does it address all mandatory arguments?
-    if set(method.func_code.co_varnames) - set(optional_args) > set(url_query_ks):
+    if set(required_args) > set(url_query_ks):
+        raise BrokenQuery((environ['PATH_INFO'], environ['QUERY_STRING']))
+
+    # .. does it have any keys that we don't even recognize?
+    all_args = set(required_args) | set(optional_args)
+    if set(url_query_ks) - all_args:
         raise BrokenQuery((environ['PATH_INFO'], environ['QUERY_STRING']))
 
     # OK collect the kwargs dict that we'll shove into the method.
-    to_satisfy = set(method.func_code.co_varnames)
+    to_satisfy = all_args
     kwargs = {}
     for k, v in url_query_kvs:
         if k in kwargs:
