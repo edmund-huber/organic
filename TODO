@@ -1,1 +1,3 @@
-make /simple , and /simple/simple possible with little effort
+* make /simple , and /simple/simple possible with little effort
+* the path passed to the router method should be more relative somehow so that
+  you can symlink the same directory for a different leading path .. just for fun

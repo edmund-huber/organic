@@ -20,12 +20,9 @@ to have required query arguments, say GET /a/b/c?thing=3 ,
 
     echo "def GET(thing): return 'the thing is: %s' % thing" > app/a/b/c.py
 
-to have optional query arguments, say GET /a/b/c or /a/b/c?opt=meow ,
+to have optional query arguments, say GET /a/b/c or /a/b/c?opt=meow , just:
 
 ```python
-from helpers import optional_args
-
-@optional_args('opt')
 def GET(opt='narf'):
     return 'optionally: %s' % opt
 ```
@@ -33,13 +30,12 @@ def GET(opt='narf'):
 to make a link, say to another page /z with some arguments,
 
 ```python
-from helpers import optional_args, make_rel_link
+from helpers import make_rel_link
 
 import app.z
 
-@optional_args('opt')
 def GET(opt='narf'):
-    return "%s! here's a <a href=\"%s\">link</a>" % (opt, make_rel_link(app.z.GET, 7, 9, c='aaaaaaa'))
+    return "%s! here's a <a href=\"%s\">link</a>" % (opt, make_rel_link(app.z, 7, 9, c='aaaaaaa'))
 ```
 
 to make a dynamic path, for example matching any page like

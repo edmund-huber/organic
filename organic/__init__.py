@@ -1,8 +1,8 @@
-import ast
-import _ast
 import os.path
 import sys
 import urlparse
+
+import helpers
 
 def unzip2(xys):
     if xys:
@@ -39,7 +39,9 @@ def dispatch(environ, start_response):
                     # the search shouldn't be ruined if this fails
                     method = module.router('GET', url_path_parts)
                     if method is not None:
-                        methods.append(method)
+                        path = helpers.get_path_of_module(module)#__import__(method.__module__, globals(), locals(), [], -1))
+                        required_args, optional_args = helpers.get_args_of_method(path, method.__name__)
+                        methods.append((method, required_args, optional_args))
                 except Exception, e:
                     print >> sys.stderr, '** router fail: %s.router(%s, %s), "%s"' % (module_path, 'GET', url_path_parts, e)
         except ImportError, e:
@@ -54,17 +56,11 @@ def dispatch(environ, start_response):
             # OK, also parse the file so that we figure out the
             # arguments and optional arguments.
             try:
-                path = default_module.__file__
-                path = path[:-1] if path[-1] == 'c' else path
-                for e in ast.parse(open(path).read()).body:
-                    if isinstance(e, _ast.FunctionDef) and (e.name == 'GET'):
-                        all_args = [arg.id for arg in e.args.args]
-                        default_count = len(e.args.defaults)
+                path = helpers.get_path_of_module(default_module)
+                required_args, optional_args = helpers.get_args_of_method(path, 'GET')
                 # Assumption: all arguments-with-defaults must come
                 # after any regular argument.
-                methods.append((getattr(default_module, 'GET'),
-                                all_args[:default_count],
-                                all_args[default_count:]))
+                methods.append((getattr(default_module, 'GET'), required_args, optional_args))
             except Exception, e:
                 raise CannotParse(e)
     except ImportError, e:
