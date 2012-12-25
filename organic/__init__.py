@@ -22,14 +22,14 @@ class BrokenQuery(Exception):
 class CannotParse(Exception):
     pass
 
-def dispatch(environ, start_response):
+def dispatch(path, environ, start_response):
 
     # Find the matching methods implemented through custom routers ..
     url_path_parts = filter(lambda p: '' != p, environ['PATH_INFO'].split('/'))
     methods = []
     for i in range(len(url_path_parts) + 1):
         # Maybe import ..
-        module_path = '.'.join(['app'] + url_path_parts[:i])
+        module_path = '.'.join([path] + url_path_parts[:i])
         try:
             __import__(module_path, globals(), locals(), [], -1)
             module = sys.modules[module_path]
@@ -49,7 +49,7 @@ def dispatch(environ, start_response):
 
     # Add the default method if it can be found.
     try:
-        default_module_path = '.'.join(['app'] + url_path_parts)
+        default_module_path = '.'.join([path] + url_path_parts)
         __import__(default_module_path, globals(), locals(), [], -1)
         default_module = sys.modules[default_module_path]
         if hasattr(default_module, 'GET'):
