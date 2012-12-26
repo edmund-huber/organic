@@ -1,4 +1,6 @@
+from mako.lookup import TemplateLookup
 from mako.template import Template
+import mimetypes
 import os.path
 import sys
 import urlparse
@@ -26,7 +28,7 @@ class CannotParse(Exception):
 class BrokenHandler(Exception):
     pass
 
-def dispatch(path, environ, start_response):
+def dispatch(path, base_templates_path, environ, start_response):
 
     # Find the matching methods implemented through custom routers ..
     url_path_parts = filter(lambda p: '' != p, environ['PATH_INFO'].split('/'))
@@ -39,15 +41,14 @@ def dispatch(path, environ, start_response):
             module = sys.modules[module_path]
             # if there's a module.router, then do what it asks
             if hasattr(module, 'router'):
+                relevant_url_parts = url_path_parts[i:]
                 try:
                     # the search shouldn't be ruined if this fails
-                    method = module.router('GET', url_path_parts)
+                    method = module.router('GET', relevant_url_parts)
                     if method is not None:
-                        path = helpers.get_path_of_module(module)#__import__(method.__module__, globals(), locals(), [], -1))
-                        required_args, optional_args = helpers.get_args_of_method(path, method.__name__)
-                        methods.append((method, required_args, optional_args))
+                        methods.append(method)
                 except Exception, e:
-                    print >> sys.stderr, '** router fail: %s.router(%s, %s), "%s"' % (module_path, 'GET', url_path_parts, e)
+                    print >> sys.stderr, '** router fail: %s.router(%s, %s), "%s"' % (module_path, 'GET', relevant_url_parts, e)
         except ImportError, e:
             pass        
 
@@ -61,10 +62,7 @@ def dispatch(path, environ, start_response):
             # arguments and optional arguments.
             try:
                 path = helpers.get_path_of_module(default_module)
-                required_args, optional_args = helpers.get_args_of_method(path, 'GET')
-                # Assumption: all arguments-with-defaults must come
-                # after any regular argument.
-                methods.append((getattr(default_module, 'GET'), required_args, optional_args))
+                methods.append(getattr(default_module, 'GET'))
             except Exception, e:
                 raise CannotParse(e)
     except ImportError, e:
@@ -78,50 +76,34 @@ def dispatch(path, environ, start_response):
         raise NoMatchingMethod(environ['PATH_INFO'])
     else:
         method = methods[0]
-
-    # Check that the query is properly formatted:
-    method, required_args, optional_args = method
-    url_query_kvs = urlparse.parse_qsl(environ['QUERY_STRING'])
-    url_query_ks, _ = unzip2(url_query_kvs)
-
-    # .. does it address all mandatory arguments?
-    if set(required_args) > set(url_query_ks):
-        raise BrokenQuery((environ['PATH_INFO'], environ['QUERY_STRING']))
-
-    # .. does it have any keys that we don't even recognize?
-    all_args = set(required_args) | set(optional_args)
-    if set(url_query_ks) - all_args:
-        raise BrokenQuery((environ['PATH_INFO'], environ['QUERY_STRING']))
-
-    # OK collect the kwargs dict that we'll shove into the method.
-    to_satisfy = all_args
-    kwargs = {}
-    for k, v in url_query_kvs:
-        if k in kwargs:
-            raise BrokenQuery((environ['PATH_INFO'], environ['QUERY_STRING']))
-        elif k in to_satisfy:
-            kwargs[k] = v
-            to_satisfy.remove(k)
  
     # Call the module.method to generate the response
+    kwargs = dict(map(lambda (k, v): (k, v[0] if len(v) == 1 else v), urlparse.parse_qs(environ['QUERY_STRING']).items()))
     resp = method(**kwargs)
     path, filename = os.path.split(module.__file__)
     filename = filename.split('.')[-2:-1][0]
+    lookup = TemplateLookup(directories=[base_templates_path])
     if dict == type(resp):
-        # If we get a dict back, or None, we should find the
-        # corresponding template and feed in the dict or {}.
+        # If we get a dict back,we should find the corresponding
+        # template and feed in the dict.
         if filename == '__init__':
             raise BrokenHandler()
         else:
             start_response('200 OK', [('Content-type', 'text/html')])
-            return Template(filename="%s/%s.html" % (path, filename)).render(resp).encode('utf-8')
-    elif str == type(resp):
-        # This is just a string response, return text.
-        start_response('200 OK', [('Content-type', 'text/plain')])
-        return resp
+            return Template(filename="%s/%s.html" % (path, filename), lookup=lookup).render(**resp).encode('utf-8')
+    elif (tuple == type(resp)) and (str == type(resp[0])) and (str == type(resp[1])):
+        # A content-type and some text.
+        start_response('200 OK', [('Content-type', resp[0])])
+        return resp[1]
     elif (tuple == type(resp)) and (str == type(resp[0])) and (dict == type(resp[1])):
-        # A template and a dict.
+        # A template name and a dict.
         start_response('200 OK', [('Content-type', 'text/html')])
-        return Template(filename="%s/%s.html" % (path, resp[0])).render(**resp[1]).encode('utf-8')
+        return Template(filename="%s/%s.html" % (path, resp[0]), lookup=lookup).render(**resp[1]).encode('utf-8')
     else:
         raise BrokenHandler()
+
+def static_router(root, verb, path):
+    fn = "%s/%s" % (root, '/'.join(path))
+    def static():
+        return mimetypes.guess_type(fn)[0], open(fn).read()
+    return static

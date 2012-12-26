@@ -1,7 +1,7 @@
 import re
 
 def rage():
-    return 'rawwwrrr!'
+    return 'text/plain', 'rawwwrrr!'
 
 def router(verb, path, **kwargs):
     if verb == 'GET':
