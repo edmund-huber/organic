@@ -1,3 +1,4 @@
+from mako.template import Template
 import os.path
 import sys
 import urlparse
@@ -20,6 +21,9 @@ class BrokenQuery(Exception):
     pass
 
 class CannotParse(Exception):
+    pass
+
+class BrokenHandler(Exception):
     pass
 
 def dispatch(path, environ, start_response):
@@ -100,5 +104,24 @@ def dispatch(path, environ, start_response):
             to_satisfy.remove(k)
  
     # Call the module.method to generate the response
-    start_response('200 OK', [('Content-type', 'text/html')])
-    return method(**kwargs)
+    resp = method(**kwargs)
+    path, filename = os.path.split(module.__file__)
+    filename = filename.split('.')[-2:-1][0]
+    if dict == type(resp):
+        # If we get a dict back, or None, we should find the
+        # corresponding template and feed in the dict or {}.
+        if filename == '__init__':
+            raise BrokenHandler()
+        else:
+            start_response('200 OK', [('Content-type', 'text/html')])
+            return Template(filename="%s/%s.html" % (path, filename)).render(resp).encode('utf-8')
+    elif str == type(resp):
+        # This is just a string response, return text.
+        start_response('200 OK', [('Content-type', 'text/plain')])
+        return resp
+    elif (tuple == type(resp)) and (str == type(resp[0])) and (dict == type(resp[1])):
+        # A template and a dict.
+        start_response('200 OK', [('Content-type', 'text/html')])
+        return Template(filename="%s/%s.html" % (path, resp[0])).render(**resp[1]).encode('utf-8')
+    else:
+        raise BrokenHandler()
