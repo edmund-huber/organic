@@ -2,6 +2,7 @@ import mimetypes
 import mako.template
 import os.path
 
+import organic.exception
 import organic.response
 import organic.status
 
@@ -12,7 +13,7 @@ def default(lookup, module, method, **params):
     if hasattr(module, method):
         return interpret(lookup, module, getattr(module, method)(**params))
     else:
-        return _404()
+        raise organic.exception.RouteException(organic.status.NOT_FOUND)
 
 def interpret(lookup, module, v):
     module_path = os.path.dirname(module.__file__)
@@ -30,16 +31,17 @@ def interpret(lookup, module, v):
             body = mako.template.Template(filename=fn, lookup=lookup).render(**v.data).encode('utf-8')
             return v.status, v.headers, body
         else:
-            return _500()
+            raise organic.exception.RouteException(organic.status.SERVER_ERROR)
 
     elif isinstance(v, organic.response.Raw):
         if 'Content-Type' not in v.headers:
-            return _500()
+            raise organic.exception.RouteException(organic.status.SERVER_ERROR)
         else:
             return v.status, v.headers, v.body
 
-    elif v is None:
-        return _404()
+    elif v is False:
+        raise organic.exception.RouteException(organic.status.NOT_FOUND)
 
     else:
-        return _500()
+        raise organic.exception.RouteException(organic.status.SERVER_ERROR)
+

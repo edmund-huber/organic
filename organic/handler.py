@@ -2,10 +2,8 @@ import functools
 import mako.lookup
 import sys
 
+import organic.exception
 import organic.handlers
-
-class NoMatchingMethod(Exception): pass
-class MultipleMatchingMethods(Exception): pass
 
 def choose(web_path, base_templates_path, url_path):
 
@@ -43,8 +41,8 @@ def choose(web_path, base_templates_path, url_path):
     # If more than one method matches, or no method matches, we
     # complain.
     if len(methods) > 1:
-        raise MultipleMatchingMethods('/'.join(url_path), methods)
+        raise organic.exception.MultipleMatchingRoutes('/'.join(url_path), methods)
     if len(methods) == 0:
-        raise NoMatchingMethod('/'.join(web_path + url_path))
+        raise organic.exception.NoMatchingRoute('/'.join(web_path + url_path))
     else:
         return methods[0]
