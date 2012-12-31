@@ -1,2 +1,4 @@
+import organic.response
+
 def GET(word='hi there'):
-  return 'hi', {'word': word}
+  return organic.response.Template('hi.html', {'word': word})

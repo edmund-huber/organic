@@ -1,2 +1,5 @@
+import organic.response
+import organic.status
+
 def GET():
-    return 'text/html', 'a is for antelope. were you looking for <a href="/b">bonobo?</a>'
+    return {'text': 'hello hello hello'}

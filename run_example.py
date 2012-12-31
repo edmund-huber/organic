@@ -1,4 +1,4 @@
-# for example, `python run_example.py a_or_b`
+# for example, `python run_example.py examples/a_or_b`
 
 import functools
 import organic
